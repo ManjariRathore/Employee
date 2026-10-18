@@ -10,14 +10,14 @@ DB_PASSWORD="${DB_PASSWORD:?Set DB_PASSWORD before running this script}"
 CONTEXT="kind-${CLUSTER_NAME}"
 REPOSITORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-for command in docker kind kubectl rg; do
+for command in docker kind kubectl grep; do
   if ! command -v "${command}" >/dev/null 2>&1; then
     echo "Required command not found: ${command}" >&2
     exit 1
   fi
 done
 
-if ! kind get clusters | rg --fixed-strings --line-regexp --quiet "${CLUSTER_NAME}"; then
+if ! kind get clusters | grep --fixed-strings --line-regexp --quiet "${CLUSTER_NAME}"; then
   echo "Creating kind cluster ${CLUSTER_NAME}"
   kind create cluster \
     --name "${CLUSTER_NAME}" \
