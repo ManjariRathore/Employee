@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - prometheus-deployment.yaml
+  - prometheus-service.yaml
+  - jaeger-deployment.yaml
+  - jaeger-service.yaml
+
+configMapGenerator:
+  - name: prometheus-config
+    files:
+      - prometheus.yml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: employee-management-system
+      app.kubernetes.io/component: observability

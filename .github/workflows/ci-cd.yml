@@ -1,0 +1,165 @@
+name: CI and container delivery
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Test, scan, and smoke deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: emloyeems/pom.xml
+
+      - name: Scan repository for committed secrets
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          format: table
+          exit-code: "1"
+          skip-dirs: .git,emloyeems/target
+          skip-files: emloyeems/pom.xml
+
+      - name: Audit deployment configuration
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: misconfig
+          format: table
+          exit-code: "0"
+          severity: HIGH,CRITICAL
+          skip-dirs: .git,emloyeems/target
+          skip-files: emloyeems/pom.xml,k8s/releases/green/slot-patch.yaml,k8s/releases/green/service-slot-patch.yaml
+          skip-setup-trivy: true
+
+      - name: Run Maven verification
+        working-directory: emloyeems
+        run: sh mvnw --batch-mode --no-transfer-progress verify
+
+      - name: Validate shell scripts
+        run: bash -n scripts/*.sh
+
+      - name: Build application image
+        run: |
+          docker build \
+            --build-arg APP_VERSION="${GITHUB_SHA}" \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            --tag "employee-management-service:${GITHUB_SHA}" \
+            emloyeems
+
+      - name: Scan image for critical vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: employee-management-service:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          scanners: vuln
+          vuln-type: os,library
+          severity: CRITICAL
+
+      - name: Create temporary kind cluster
+        uses: helm/kind-action@v1.15.1
+        with:
+          cluster_name: ci
+          config: infra/kind/cluster.yaml
+
+      - name: Validate Kubernetes configuration
+        run: kubectl kustomize k8s/overlays/local >/tmp/employee-ms-rendered.yaml
+
+      - name: Deploy commit image to kind
+        env:
+          CLUSTER_NAME: ci
+          DB_PASSWORD: ci-only-password
+          IMAGE: employee-management-service:${{ github.sha }}
+        run: ./scripts/k8s-deploy-local.sh
+
+      - name: Run Kubernetes smoke test
+        run: |
+          kubectl --context kind-ci --namespace employee-ms \
+            port-forward service/employee-api 18080:8080 \
+            >/tmp/employee-api-port-forward.log 2>&1 &
+          port_forward_pid=$!
+          trap 'kill "${port_forward_pid}" 2>/dev/null || true' EXIT
+          BASE_URL=http://localhost:18080 ./scripts/smoke-test.sh
+
+      - name: Collect Kubernetes diagnostics on failure
+        if: failure()
+        run: |
+          kubectl --context kind-ci --namespace employee-ms get \
+            pods,services,persistentvolumeclaims --output=wide || true
+          kubectl --context kind-ci --namespace employee-ms describe pods || true
+          kubectl --context kind-ci --namespace employee-ms logs \
+            deployment/employee-api --all-containers=true --tail=200 || true
+
+  publish:
+    name: Publish immutable image
+    needs: verify
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set lowercase image name
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/employee-management-service" >>"${GITHUB_OUTPUT}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish commit image
+        uses: docker/build-push-action@v7
+        with:
+          context: emloyeems
+          push: true
+          tags: ${{ steps.image.outputs.name }}:${{ github.sha }}
+          build-args: |
+            APP_VERSION=${{ github.sha }}
+            VCS_REF=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      - name: Record published image
+        run: echo "Published ${{ steps.image.outputs.name }}:${GITHUB_SHA}" >>"${GITHUB_STEP_SUMMARY}"

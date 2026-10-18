@@ -1,0 +1,18 @@
+# Local credentials and environment overrides
+.env
+.env.*
+!.env.example
+**/application-local.properties
+**/*-secret.yaml
+**/*-secret.yml
+secrets/
+
+# Private keys and local certificates
+*.key
+*.pem
+*.p12
+*.jks
+
+# Local evidence and tool output
+.trivy/
+evidence/private/

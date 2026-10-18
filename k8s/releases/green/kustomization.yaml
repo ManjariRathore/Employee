@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: employee-ms
+nameSuffix: -green
+
+resources:
+  - ../../app
+
+patches:
+  - path: slot-patch.yaml
+  - path: service-slot-patch.yaml
+
+images:
+  - name: employee-management-service
+    newName: employee-management-service
+    newTag: local
+
+labels:
+  - pairs:
+      app.kubernetes.io/environment: local

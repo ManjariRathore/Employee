@@ -2,9 +2,9 @@ package lk.linex.emloyeems.controller;
 
 import lk.linex.emloyeems.dto.EmployeeDTO;
 import lk.linex.emloyeems.dto.ResponseDTO;
+import lk.linex.emloyeems.service.EmployeeOperationResult;
 import lk.linex.emloyeems.service.EmployeeService;
 import lk.linex.emloyeems.util.VarList;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,126 +15,74 @@ import java.util.List;
 @RequestMapping("api/v1/employee")
 public class EmployeeController {
 
-    @Autowired
-    private EmployeeService employeeService;
-    @Autowired
-    private ResponseDTO responseDTO;
+    private final EmployeeService employeeService;
+
+    public EmployeeController(EmployeeService employeeService) {
+        this.employeeService = employeeService;
+    }
 
     @PostMapping(value = "/saveEmployee")
-    public ResponseEntity saveEmployee(@RequestBody EmployeeDTO employeeDTO){
-            try {
-                String res = employeeService.saveEmployee(employeeDTO);
-                if (res.equals("00")){
-                    responseDTO.setCode(VarList.RSP_SUCCESS);
-                    responseDTO.setMessage("Success");
-                    responseDTO.setContent(employeeDTO);
-                    return new ResponseEntity(responseDTO, HttpStatus.ACCEPTED);
-                }else if(res.equals("06")){
-                    responseDTO.setCode(VarList.RSP_DUPLICATED);
-                    responseDTO.setMessage("Employee Registered");
-                    responseDTO.setContent(employeeDTO);
-                    return new ResponseEntity(responseDTO, HttpStatus.BAD_REQUEST);
-                }else{
-                    responseDTO.setCode(VarList.RSP_FAIL);
-                    responseDTO.setMessage("Error");
-                    responseDTO.setContent(null);
-                    return new ResponseEntity(responseDTO, HttpStatus.BAD_REQUEST);
-                }
-            }catch (Exception e){
-                responseDTO.setCode(VarList.RSP_ERROR);
-                responseDTO.setMessage(e.getMessage());
-                responseDTO.setContent(null);
-                return new ResponseEntity(responseDTO, HttpStatus.INTERNAL_SERVER_ERROR);
-            }
+    public ResponseEntity<ResponseDTO> saveEmployee(@RequestBody EmployeeDTO employeeDTO){
+        EmployeeOperationResult result = employeeService.saveEmployee(employeeDTO);
+        return switch (result) {
+            case SUCCESS -> response(VarList.RSP_SUCCESS, "Success", employeeDTO, HttpStatus.ACCEPTED);
+            case DUPLICATE -> response(
+                    VarList.RSP_DUPLICATED,
+                    "Employee Registered",
+                    employeeDTO,
+                    HttpStatus.BAD_REQUEST);
+            case NOT_FOUND -> response(VarList.RSP_FAIL, "Error", null, HttpStatus.BAD_REQUEST);
+        };
     }
 
     @PutMapping(value = "/updateEmployee")
-    public ResponseEntity updateEmployee(@RequestBody EmployeeDTO employeeDTO){
-        try {
-            String res = employeeService.updateEmployee(employeeDTO);
-            if (res.equals("00")){
-                responseDTO.setCode(VarList.RSP_SUCCESS);
-                responseDTO.setMessage("Success");
-                responseDTO.setContent(employeeDTO);
-                return new ResponseEntity(responseDTO, HttpStatus.ACCEPTED);
-            }else if(res.equals("01")){
-                responseDTO.setCode(VarList.RSP_DUPLICATED);
-                responseDTO.setMessage("NOT A Registered Employee");
-                responseDTO.setContent(employeeDTO);
-                return new ResponseEntity(responseDTO, HttpStatus.BAD_REQUEST);
-            }else{
-                responseDTO.setCode(VarList.RSP_FAIL);
-                responseDTO.setMessage("Error");
-                responseDTO.setContent(null);
-                return new ResponseEntity(responseDTO, HttpStatus.BAD_REQUEST);
-            }
-        }catch (Exception e){
-            responseDTO.setCode(VarList.RSP_ERROR);
-            responseDTO.setMessage(e.getMessage());
-            responseDTO.setContent(null);
-            return new ResponseEntity(responseDTO, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public ResponseEntity<ResponseDTO> updateEmployee(@RequestBody EmployeeDTO employeeDTO){
+        EmployeeOperationResult result = employeeService.updateEmployee(employeeDTO);
+        return switch (result) {
+            case SUCCESS -> response(VarList.RSP_SUCCESS, "Success", employeeDTO, HttpStatus.ACCEPTED);
+            case NOT_FOUND -> response(
+                    VarList.RSP_NO_DATA_FOUND,
+                    "NOT A Registered Employee",
+                    employeeDTO,
+                    HttpStatus.BAD_REQUEST);
+            case DUPLICATE -> response(VarList.RSP_FAIL, "Error", null, HttpStatus.BAD_REQUEST);
+        };
     }
 
     @GetMapping("/getAllEmployees")
-    public ResponseEntity getAllEmployees(){
-        try {
-            List<EmployeeDTO> employeeDTOList = employeeService.getAllEmployee();
-            responseDTO.setCode(VarList.RSP_SUCCESS);
-            responseDTO.setMessage("Success");
-            responseDTO.setContent(employeeDTOList);
-            return new ResponseEntity(responseDTO, HttpStatus.ACCEPTED);
-        }catch (Exception e){
-            responseDTO.setCode(VarList.RSP_ERROR);
-            responseDTO.setMessage(e.getMessage());
-            responseDTO.setContent(null);
-            return new ResponseEntity(responseDTO, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public ResponseEntity<ResponseDTO> getAllEmployees(){
+        List<EmployeeDTO> employeeDTOList = employeeService.getAllEmployee();
+        return response(VarList.RSP_SUCCESS, "Success", employeeDTOList, HttpStatus.ACCEPTED);
     }
 
     @GetMapping("/searchEmployee/{empId}")
-    public ResponseEntity searchEmployee(@PathVariable int empId){
-        try {
-            EmployeeDTO employeeDTO = employeeService.searchEmployee(empId);
-            if (employeeDTO != null){
-                responseDTO.setCode(VarList.RSP_SUCCESS);
-                responseDTO.setMessage("Success");
-                responseDTO.setContent(employeeDTO);
-                return new ResponseEntity(responseDTO, HttpStatus.ACCEPTED);
-            }else{
-                responseDTO.setCode(VarList.RSP_NO_DATA_FOUND);
-                responseDTO.setMessage("No Employee Available For this empId");
-                responseDTO.setContent(null);
-                return new ResponseEntity(responseDTO, HttpStatus.BAD_REQUEST);
-            }
-        }catch (Exception e){
-            responseDTO.setCode(VarList.RSP_ERROR);
-            responseDTO.setMessage(e.getMessage());
-            responseDTO.setContent(null);
-            return new ResponseEntity(responseDTO, HttpStatus.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<ResponseDTO> searchEmployee(@PathVariable int empId){
+        EmployeeDTO employeeDTO = employeeService.searchEmployee(empId);
+        if (employeeDTO != null){
+            return response(VarList.RSP_SUCCESS, "Success", employeeDTO, HttpStatus.ACCEPTED);
         }
+        return response(
+                VarList.RSP_NO_DATA_FOUND,
+                "No Employee Available For this empId",
+                null,
+                HttpStatus.BAD_REQUEST);
     }
 
     @DeleteMapping("/deleteEmployee/{empId}")
-    public ResponseEntity deleteEmployee(@PathVariable int empId){
-        try {
-            String res = employeeService.deleteEmployee(empId);
-            if (res.equals("00")){
-                responseDTO.setCode(VarList.RSP_SUCCESS);
-                responseDTO.setMessage("Success");
-                responseDTO.setContent(null);
-                return new ResponseEntity(responseDTO, HttpStatus.ACCEPTED);
-            }else{
-                responseDTO.setCode(VarList.RSP_NO_DATA_FOUND);
-                responseDTO.setMessage("No Employee Available For this empId");
-                responseDTO.setContent(null);
-                return new ResponseEntity(responseDTO, HttpStatus.BAD_REQUEST);
-            }
-        }catch (Exception e){
-            responseDTO.setCode(VarList.RSP_ERROR);
-            responseDTO.setMessage(e.getMessage());
-            responseDTO.setContent(null);
-            return new ResponseEntity(responseDTO, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public ResponseEntity<ResponseDTO> deleteEmployee(@PathVariable int empId){
+        EmployeeOperationResult result = employeeService.deleteEmployee(empId);
+        return switch (result) {
+            case SUCCESS -> response(VarList.RSP_SUCCESS, "Success", null, HttpStatus.ACCEPTED);
+            case NOT_FOUND -> response(
+                    VarList.RSP_NO_DATA_FOUND,
+                    "No Employee Available For this empId",
+                    null,
+                    HttpStatus.BAD_REQUEST);
+            case DUPLICATE -> response(VarList.RSP_FAIL, "Error", null, HttpStatus.BAD_REQUEST);
+        };
+    }
+
+    private ResponseEntity<ResponseDTO> response(String code, String message, Object content, HttpStatus status) {
+        return new ResponseEntity<>(new ResponseDTO(code, message, content), status);
     }
 }

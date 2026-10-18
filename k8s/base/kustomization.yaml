@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../app
+  - mysql-service.yaml
+  - mysql-statefulset.yaml
+
+configMapGenerator:
+  - name: employee-app-config
+    literals:
+      - DB_URL=jdbc:mysql://mysql:3306/employeems?createDatabaseIfNotExist=true
+      - DB_USERNAME=root
+      - TRACING_ENABLED=false
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: employee-management-system
