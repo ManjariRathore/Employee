@@ -72,6 +72,16 @@ class EmployeeApiIntegrationTest {
     }
 
     @Test
+    void returnsABadRequestForMalformedJson() throws Exception {
+        mockMvc.perform(post("/api/v1/employee/saveEmployee")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"empName\":"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("10"))
+                .andExpect(jsonPath("$.message").value("Invalid request"));
+    }
+
+    @Test
     void completesTheCrudJourneyThroughHttp() throws Exception {
         EmployeeDTO employee = new EmployeeDTO(0, "Meera", "Bengaluru", "9000000004");
 

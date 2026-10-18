@@ -4,7 +4,6 @@ import jakarta.transaction.Transactional;
 import lk.linex.emloyeems.dto.EmployeeDTO;
 import lk.linex.emloyeems.entity.Employee;
 import lk.linex.emloyeems.repo.EmployeeRepo;
-import lk.linex.emloyeems.util.VarList;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
 import org.springframework.stereotype.Service;
@@ -23,22 +22,22 @@ public class EmployeeService {
         this.modelMapper = modelMapper;
     }
 
-    public String saveEmployee(EmployeeDTO employeeDTO){
+    public EmployeeOperationResult saveEmployee(EmployeeDTO employeeDTO){
         if (employeeRepo.existsById(employeeDTO.getEmpId())){
-            return VarList.RSP_DUPLICATED;
+            return EmployeeOperationResult.DUPLICATE;
         }else {
             Employee savedEmployee = employeeRepo.save(modelMapper.map(employeeDTO, Employee.class));
             employeeDTO.setEmpId(savedEmployee.getEmpId());
-            return VarList.RSP_SUCCESS;
+            return EmployeeOperationResult.SUCCESS;
         }
     }
 
-    public String updateEmployee(EmployeeDTO employeeDTO){
+    public EmployeeOperationResult updateEmployee(EmployeeDTO employeeDTO){
         if (employeeRepo.existsById(employeeDTO.getEmpId())){
             employeeRepo.save(modelMapper.map(employeeDTO, Employee.class));
-            return VarList.RSP_SUCCESS;
+            return EmployeeOperationResult.SUCCESS;
         }else {
-            return VarList.RSP_NO_DATA_FOUND;
+            return EmployeeOperationResult.NOT_FOUND;
         }
     }
 
@@ -55,12 +54,12 @@ public class EmployeeService {
             return null;
         }
     }
-    public String deleteEmployee(int empId){
+    public EmployeeOperationResult deleteEmployee(int empId){
         if(employeeRepo.existsById(empId)){
             employeeRepo.deleteById(empId);
-            return VarList.RSP_SUCCESS;
+            return EmployeeOperationResult.SUCCESS;
         }else{
-            return VarList.RSP_NO_DATA_FOUND;
+            return EmployeeOperationResult.NOT_FOUND;
         }
     }
 }

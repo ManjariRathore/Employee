@@ -2,7 +2,6 @@ package lk.linex.emloyeems.service;
 
 import lk.linex.emloyeems.dto.EmployeeDTO;
 import lk.linex.emloyeems.repo.EmployeeRepo;
-import lk.linex.emloyeems.util.VarList;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,9 +31,9 @@ class EmployeeServiceIntegrationTest {
     void createsAndRejectsDuplicateEmployee() {
         EmployeeDTO employee = employee("Asha", "Pune", "9000000001");
 
-        assertThat(employeeService.saveEmployee(employee)).isEqualTo(VarList.RSP_SUCCESS);
+        assertThat(employeeService.saveEmployee(employee)).isEqualTo(EmployeeOperationResult.SUCCESS);
         assertThat(employee.getEmpId()).isPositive();
-        assertThat(employeeService.saveEmployee(employee)).isEqualTo(VarList.RSP_DUPLICATED);
+        assertThat(employeeService.saveEmployee(employee)).isEqualTo(EmployeeOperationResult.DUPLICATE);
     }
 
     @Test
@@ -47,22 +46,22 @@ class EmployeeServiceIntegrationTest {
         assertThat(found.getEmpName()).isEqualTo("Ravi");
 
         employee.setEmpAddress("Delhi");
-        assertThat(employeeService.updateEmployee(employee)).isEqualTo(VarList.RSP_SUCCESS);
+        assertThat(employeeService.updateEmployee(employee)).isEqualTo(EmployeeOperationResult.SUCCESS);
         assertThat(employeeService.searchEmployee(employee.getEmpId()).getEmpAddress()).isEqualTo("Delhi");
 
         List<EmployeeDTO> employees = employeeService.getAllEmployee();
         assertThat(employees).extracting(EmployeeDTO::getEmpId).contains(employee.getEmpId());
 
-        assertThat(employeeService.deleteEmployee(employee.getEmpId())).isEqualTo(VarList.RSP_SUCCESS);
+        assertThat(employeeService.deleteEmployee(employee.getEmpId())).isEqualTo(EmployeeOperationResult.SUCCESS);
         assertThat(employeeService.searchEmployee(employee.getEmpId())).isNull();
-        assertThat(employeeService.deleteEmployee(employee.getEmpId())).isEqualTo(VarList.RSP_NO_DATA_FOUND);
+        assertThat(employeeService.deleteEmployee(employee.getEmpId())).isEqualTo(EmployeeOperationResult.NOT_FOUND);
     }
 
     @Test
     void rejectsAnUpdateForAnUnknownEmployee() {
         EmployeeDTO employee = new EmployeeDTO(999999, "Unknown", "Nowhere", "9000000003");
 
-        assertThat(employeeService.updateEmployee(employee)).isEqualTo(VarList.RSP_NO_DATA_FOUND);
+        assertThat(employeeService.updateEmployee(employee)).isEqualTo(EmployeeOperationResult.NOT_FOUND);
     }
 
     private EmployeeDTO employee(String name, String address, String mobileNumber) {

@@ -104,11 +104,11 @@ jobs:
       - name: Run Kubernetes smoke test
         run: |
           kubectl --context kind-ci --namespace employee-ms \
-            port-forward service/employee-api 8080:8080 \
+            port-forward service/employee-api 18080:8080 \
             >/tmp/employee-api-port-forward.log 2>&1 &
           port_forward_pid=$!
-          trap 'kill "${port_forward_pid}"' EXIT
-          ./scripts/smoke-test.sh
+          trap 'kill "${port_forward_pid}" 2>/dev/null || true' EXIT
+          BASE_URL=http://localhost:18080 ./scripts/smoke-test.sh
 
       - name: Collect Kubernetes diagnostics on failure
         if: failure()
