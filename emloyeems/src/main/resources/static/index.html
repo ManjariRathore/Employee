@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Administration console for the Employee Management Service">
+    <title>Employee Admin Console</title>
+    <link rel="stylesheet" href="/admin.css?v=2">
+    <script src="/admin.js?v=2" defer></script>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+        <a class="brand" href="#overview" aria-label="Employee Management home">
+            <span class="brand-mark" aria-hidden="true">EM</span>
+            <span>
+                <strong>Employee MS</strong>
+                <small>Admin console</small>
+            </span>
+        </a>
+
+        <nav class="nav-list">
+            <a class="nav-link active" href="#overview">
+                <span aria-hidden="true">&#9638;</span> Overview
+            </a>
+            <a class="nav-link" href="#employees">
+                <span aria-hidden="true">&#9776;</span> Employees
+            </a>
+            <a class="nav-link" href="#endpoints">
+                <span aria-hidden="true">&lt;/&gt;</span> API endpoints
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <p>Observability</p>
+            <a href="http://localhost:9090" target="_blank" rel="noreferrer">Prometheus <span>&nearr;</span></a>
+            <a href="http://localhost:16686" target="_blank" rel="noreferrer">Jaeger <span>&nearr;</span></a>
+        </div>
+    </aside>
+
+    <main>
+        <header class="topbar">
+            <button class="menu-button" id="menuButton" type="button" aria-label="Toggle navigation" aria-expanded="false">&#9776;</button>
+            <div>
+                <p class="eyebrow">Operations workspace</p>
+                <h1>Employee administration</h1>
+            </div>
+            <div class="system-state" title="Application health">
+                <span class="status-dot" id="healthDot"></span>
+                <span id="healthLabel">Checking API</span>
+            </div>
+        </header>
+
+        <div class="content">
+            <section id="overview" aria-labelledby="overviewTitle">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Overview</p>
+                        <h2 id="overviewTitle">Good <span id="timeGreeting">day</span>, Administrator</h2>
+                        <p>Manage employee records and confirm service health from one place.</p>
+                    </div>
+                    <button class="button primary" id="addEmployeeButton" type="button">+ Add employee</button>
+                </div>
+
+                <div class="stats-grid">
+                    <article class="stat-card">
+                        <span class="stat-icon blue" aria-hidden="true">&#9783;</span>
+                        <div>
+                            <p>Total employees</p>
+                            <strong id="employeeCount">&mdash;</strong>
+                        </div>
+                    </article>
+                    <article class="stat-card">
+                        <span class="stat-icon green" aria-hidden="true">&#10003;</span>
+                        <div>
+                            <p>API status</p>
+                            <strong id="apiStatus">Checking</strong>
+                        </div>
+                    </article>
+                    <article class="stat-card">
+                        <span class="stat-icon amber" aria-hidden="true">&#8645;</span>
+                        <div>
+                            <p>Last refreshed</p>
+                            <strong id="lastRefreshed">Never</strong>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="panel" id="employees" aria-labelledby="employeesTitle">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow">Directory</p>
+                        <h2 id="employeesTitle">Employees</h2>
+                    </div>
+                    <div class="table-tools">
+                        <label class="search-box">
+                            <span class="sr-only">Search employees</span>
+                            <span aria-hidden="true">&#9906;</span>
+                            <input id="searchInput" type="search" placeholder="Search by ID, name, address or phone">
+                        </label>
+                        <button class="button secondary" id="refreshButton" type="button">Refresh</button>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Employee</th>
+                            <th scope="col">Address</th>
+                            <th scope="col">Mobile number</th>
+                            <th scope="col" class="actions-heading">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody id="employeeRows"></tbody>
+                    </table>
+                    <div class="empty-state" id="emptyState" hidden>
+                        <span aria-hidden="true">&#9783;</span>
+                        <h3>No employees found</h3>
+                        <p id="emptyMessage">Add the first employee to get started.</p>
+                    </div>
+                    <div class="loading-state" id="loadingState">
+                        <span class="spinner" aria-hidden="true"></span>
+                        Loading employees
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" id="endpoints" aria-labelledby="endpointsTitle">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow">Reference</p>
+                        <h2 id="endpointsTitle">API endpoints</h2>
+                    </div>
+                    <code>/api/v1/employee</code>
+                </div>
+                <div class="endpoint-list">
+                    <div><span class="method get">GET</span><code>/getAllEmployees</code><p>List all employee records</p></div>
+                    <div><span class="method get">GET</span><code>/searchEmployee/{empId}</code><p>Find an employee by ID</p></div>
+                    <div><span class="method post">POST</span><code>/saveEmployee</code><p>Create an employee</p></div>
+                    <div><span class="method put">PUT</span><code>/updateEmployee</code><p>Update an employee</p></div>
+                    <div><span class="method delete">DELETE</span><code>/deleteEmployee/{empId}</code><p>Delete an employee</p></div>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+
+<div class="modal-backdrop" id="employeeModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+        <div class="modal-header">
+            <div>
+                <p class="eyebrow" id="formMode">New record</p>
+                <h2 id="formTitle">Add employee</h2>
+            </div>
+            <button class="icon-button" id="closeModalButton" type="button" aria-label="Close">&times;</button>
+        </div>
+        <form id="employeeForm">
+            <input id="employeeId" name="empId" type="hidden">
+            <label>
+                Full name
+                <input id="employeeName" name="empName" type="text" maxlength="100" autocomplete="name" required>
+            </label>
+            <label>
+                Address
+                <textarea id="employeeAddress" name="empAddress" rows="3" maxlength="250" required></textarea>
+            </label>
+            <label>
+                Mobile number
+                <input id="employeeMobile" name="mNumber" type="tel" maxlength="20" autocomplete="tel" required>
+            </label>
+            <div class="form-actions">
+                <button class="button secondary" id="cancelButton" type="button">Cancel</button>
+                <button class="button primary" id="saveButton" type="submit">Save employee</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<div class="modal-backdrop" id="deleteModal" hidden>
+    <section class="modal compact" role="alertdialog" aria-modal="true" aria-labelledby="deleteTitle" aria-describedby="deleteMessage">
+        <span class="warning-icon" aria-hidden="true">!</span>
+        <h2 id="deleteTitle">Delete employee?</h2>
+        <p id="deleteMessage">This action permanently removes the employee record.</p>
+        <div class="form-actions">
+            <button class="button secondary" id="cancelDeleteButton" type="button">Cancel</button>
+            <button class="button danger" id="confirmDeleteButton" type="button">Delete employee</button>
+        </div>
+    </section>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

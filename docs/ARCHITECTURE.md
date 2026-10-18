@@ -90,7 +90,7 @@ flowchart TB
         Jaeger[Jaeger all-in-one pod]
     end
 
-    Client -->|kubectl port-forward| AppService
+    Client -->|localhost:8080 via kind mapping| AppService
     AppService --> App
     App --> MySQLService
     MySQLService --> MySQL
@@ -106,8 +106,8 @@ flowchart TB
 | Cluster | One-node `kind` cluster | Local, free, and repeatable |
 | Application workload | `Deployment` with one normal replica | The API is stateless and the expected load is very small; a second version exists only during a release |
 | Database workload | `StatefulSet` with one MySQL pod | MySQL needs stable persistent storage |
-| Networking | Internal `ClusterIP` Services | Stable DNS without unnecessary external exposure |
-| Local access | `kubectl port-forward` | Simple access without ingress or a load balancer |
+| Networking | Internal Services plus local-overlay NodePorts | Stable cluster DNS while exposing only selected local endpoints |
+| Local access | kind ports bound to `127.0.0.1` | Persistent localhost access without public ingress or a load balancer |
 | Configuration | ConfigMap and environment variables | Separates settings from the image |
 | Credentials | Locally created Kubernetes Secret | Keeps the real password out of Git |
 | Storage | 1 GiB PersistentVolumeClaim | Preserves data when the MySQL pod is replaced |
@@ -138,7 +138,9 @@ Kustomize keeps shared configuration separate from local differences without int
 
 ```text
 k8s/
-├── base/                 # Workloads, Services, probes and common configuration
+├── app/                  # Reusable API Deployment and Service
+├── base/                 # Application composition, MySQL and shared configuration
+├── observability/        # Prometheus and Jaeger resources
 └── overlays/
     └── local/            # Local image tag and environment-specific values
 ```
@@ -222,8 +224,8 @@ This temporarily doubles only the application workload; both versions use the sa
 |---|---|---|
 | Health | Spring Boot Actuator | Reports liveness and readiness |
 | Metrics | Actuator and one Prometheus pod | Shows request count, errors, latency, JVM, CPU, and memory |
-| Logs | Standard output and `kubectl logs` | Explains application and dependency errors |
-| Traces | Micrometer/OpenTelemetry and one Jaeger pod | Follows a request through HTTP, application, JPA, and MySQL work |
+| Logs | Structured API request and controller error logs on standard output | Records method, route, status, latency, trace ID, and span ID without request payloads |
+| Traces | Micrometer/OpenTelemetry and one Jaeger pod | Follows inbound HTTP requests and correlates them with application logs |
 
 Grafana is not required. Prometheus provides a query interface suitable for this small demonstration.
 
@@ -235,7 +237,7 @@ The deployment is considered healthy when the application and MySQL are ready, C
 - The application container runs as a non-root user.
 - The container image and dependencies are scanned in CI.
 - MySQL is accessible only through its internal Kubernetes Service.
-- The API is accessed locally through port forwarding rather than public exposure.
+- The API and monitoring UIs use loopback-only kind port mappings rather than public exposure.
 
 ## Linux, networking, and cloud considerations
 
@@ -253,4 +255,4 @@ The deployment is considered healthy when the application and MySQL are ready, C
 - One MySQL pod is not highly available.
 - The PVC protects against pod replacement, not deletion of the entire cluster or host disk failure.
 - Monitoring data is temporary and disappears when the monitoring pods or cluster are removed.
-- Local port forwarding does not demonstrate public TLS or internet ingress.
+- Loopback-only kind mappings do not demonstrate public TLS or internet ingress.

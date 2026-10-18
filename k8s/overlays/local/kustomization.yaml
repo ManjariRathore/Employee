@@ -1,0 +1,50 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: employee-ms
+
+resources:
+  - ../../base
+  - ../../observability
+  - jaeger-ui-service.yaml
+  - namespace.yaml
+
+patches:
+  - target:
+      kind: Service
+      name: employee-api
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: NodePort
+      - op: add
+        path: /spec/ports/0/nodePort
+        value: 30080
+  - target:
+      kind: Service
+      name: prometheus
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: NodePort
+      - op: add
+        path: /spec/ports/0/nodePort
+        value: 30090
+
+configMapGenerator:
+  - name: employee-app-config
+    behavior: merge
+    literals:
+      - TRACING_ENABLED=true
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://jaeger:4318/v1/traces
+      - SQL_INIT_MODE=always
+      - DEFER_DATASOURCE_INITIALIZATION=true
+
+images:
+  - name: employee-management-service
+    newName: employee-management-service
+    newTag: local
+
+labels:
+  - pairs:
+      app.kubernetes.io/environment: local
